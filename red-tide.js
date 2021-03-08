@@ -1,181 +1,308 @@
-async function main(srcs) {
-  // start program
-  const canvas = document.getElementById("canvas")
-  const gl = canvas.getContext("webgl")
+// -- constants --
+const kScale = 4
 
-  if (gl === null) {
-    alert("where is webgl NOW~!")
+// -- props -
+let mCanvas = null
+let mGl = null
+let mSize = null
+let mSimSize = null
+
+// -- p/gl
+let mTextures = null
+let mFramebuffers = null
+let mBuffers = null
+let mShaderDescs = null
+
+// -- lifetime --
+async function main(srcs) {
+  // set props
+  mCanvas = document.getElementById("canvas")
+  if (mCanvas == null) {
+    console.error("failed to find canvas")
     return
   }
 
-  const buffers = initBuffers(
-    gl,
-  )
-
-  const [vs, fs] = srcs
-  const shaderDesc = initShaderDesc(
-    gl,
-    vs,
-    fs,
-  )
-
-  if (shaderDesc != null) {
-    drawScene(gl, shaderDesc, buffers)
+  mGl = mCanvas.getContext("webgl")
+  if (mGl == null) {
+    console.error("where is webgl NOW~!")
+    return
   }
+
+  mSize = initSize(
+    Number.parseInt(mCanvas.getAttribute("width")),
+    Number.parseInt(mCanvas.getAttribute("height")),
+  )
+
+  mSimSize = initSize(
+    mSize.w / kScale,
+    mSize.h / kScale
+  )
+
+  // init gl props
+  mTextures = initTextures()
+  mFramebuffers = initFramebuffers()
+  mBuffers = initBuffers()
+  mShaderDescs = initShaderDescs(srcs)
+
+  if (mShaderDescs.sim == null || mShaderDescs.draw == null) {
+    return
+  }
+
+  // seed simulation
+  seedTexture()
+
+  // start loop
+  sim()
+  swapTextures()
+  draw()
 }
 
-function drawScene(gl, shaderDesc, buffers) {
-  // background color, black
-  gl.clearColor(0.0, 0.0, 0.0, 1.0)
+// -- commands --
+function sim() {
+  const gl = mGl
+  const sd = mShaderDescs.sim
 
-  // enable depth testing, near > far
-  gl.clearDepth(1.0)
-  gl.enable(gl.DEPTH_TEST)
-  gl.depthFunc(gl.LEQUAL)
-
-  // clear canvas
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-
-  // create perspective matrix
-  const proj = glMatrix.mat4.create()
-
-  const {
-    clientWidth: w,
-    clientHeight: h
-  } = gl.canvas
-
-  glMatrix.mat4.perspective(
-    proj,
-    45.0 * Math.PI / 180.0, // fov
-    w / h,                  // aspect ratio
-    0.1,                    // near plane
-    100.0                   // far plane
+  // render into next texture (state)
+  gl.bindFramebuffer(gl.FRAMEBUFFER, mFramebuffers.step)
+  gl.framebufferTexture2D(
+    gl.FRAMEBUFFER,       // target, r/w framebuffer
+    gl.COLOR_ATTACHMENT0, // use the texture's color buffer
+    gl.TEXTURE_2D,        // target texture image
+    mTextures.next,       // the texture ref
+    0                     // lod, mipmap (must be 0)
   )
 
-  // create view matrix
-  const view = glMatrix.mat4.create()
-
-  glMatrix.mat4.translate(
-    view,
-    view,
-    [-0.0, 0.0, -6.0]        // translate back 6 units
+  // size simulation viewport
+  gl.viewport(
+    0,
+    0,
+    mSimSize.w,
+    mSimSize.h
   )
 
-  // conf how to pull pos vecs out of the pos buffer
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.pos)
+  // sample from the current texture (state)
+  gl.bindTexture(gl.TEXTURE_2D, mTextures.curr)
+
+  // conf pos shader attrib (translate buffer > vec)
+  gl.bindBuffer(gl.ARRAY_BUFFER, mBuffers.pos)
   gl.vertexAttribPointer(
-    shaderDesc.attribs.pos,    // location
-    2,                         // n components per vec
-    gl.FLOAT,                  // data type of component
-    false,                     // normalize?
-    0,                         // stride, n bytes per item; 0 = use n components * type size (2 * 4)
-    0,                         // offset, start pos in bytes
+    sd.attribs.pos, // location
+    2,                       // n components per vec
+    gl.FLOAT,                // data type of component
+    false,                   // normalize?
+    0,                       // stride, n bytes per item; 0 = use n components * type size (2 * 4)
+    0,                       // offset, start pos in bytes
   )
 
-  gl.enableVertexAttribArray(shaderDesc.attribs.pos)
-
-  // conf how to pull color vecs out of the color buffer
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.color)
-  gl.vertexAttribPointer(
-    shaderDesc.attribs.color,  // location
-    4,                         // n components per vec
-    gl.FLOAT,                  // data type of component
-    false,                     // normalize?
-    0,                         // stride, n bytes per item; 0 = use n components * type size (2 * 4)
-    0,                         // offset, start pos in bytes
-  )
-
-  gl.enableVertexAttribArray(shaderDesc.attribs.color)
+  gl.enableVertexAttribArray(sd.attribs.pos)
 
   // conf shader program
-  gl.useProgram(shaderDesc.program)
+  gl.useProgram(sd.program)
 
   // conf shader uniforms
-  gl.uniformMatrix4fv(
-    shaderDesc.uniforms.proj,
-    false,
-    proj,
+  gl.uniform1i(
+    sd.uniforms.state,
+    0,
   )
 
-  gl.uniformMatrix4fv(
-    shaderDesc.uniforms.view,
-    false,
-    view,
+  gl.uniform2fv(
+    sd.uniforms.scale,
+    mSimSize.v,
   )
 
-  // DRAW!
+  // "draw" simulation
   gl.drawArrays(
-    gl.TRIANGLE_STRIP,
-    0, // offset
-    4, // n vertices
+    gl.TRIANGLE_STRIP, // quad as triangles (???)
+    0,                 // offset
+    4,                 // number of indicies (4, quad)
   )
 }
 
-function initBuffers(gl) {
-  // create position buffer
-  const pos = gl.createBuffer()
+function draw() {
+  const gl = mGl
+  const sd = mShaderDescs.draw
 
-  // define shape
-  const positions = [
-    -1.0, 1.0,
-    1.0, 1.0,
-    -1.0, -1.0,
-    1.0, -1.0,
-  ]
+  // render to screen
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null)
 
-  // pass data to position buffer
-  gl.bindBuffer(gl.ARRAY_BUFFER, pos)
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW)
+  // size drawing viewport
+  gl.viewport(
+    0,
+    0,
+    mSize.w,
+    mSize.h,
+  )
 
-  // create color buffer
-  const color = gl.createBuffer()
+  // sample from the current texture (state)
+  gl.bindTexture(gl.TEXTURE_2D, mTextures.curr)
 
-  // define colors
-  const colors = [
-    1.0, 1.0, 1.0, 1.0,
-    1.0, 0.0, 0.0, 1.0,
-    0.0, 1.0, 0.0, 1.0,
-    0.0, 0.0, 1.0, 1.0,
-  ]
+  // conf pos shader attrib (translate buffer > vec)
+  gl.bindBuffer(gl.ARRAY_BUFFER, mBuffers.pos)
+  gl.vertexAttribPointer(
+    sd.attribs.pos, // location
+    2,                       // n components per vec
+    gl.FLOAT,                // data type of component
+    false,                   // normalize?
+    0,                       // stride, n bytes per item; 0 = use n components * type size (2 * 4)
+    0,                       // offset, start pos in bytes
+  )
 
-  // pass data to color buffer
-  gl.bindBuffer(gl.ARRAY_BUFFER, color)
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW)
+  gl.enableVertexAttribArray(sd.attribs.pos)
 
-  // export
+  // conf shader program
+  gl.useProgram(sd.program)
+
+  // conf shader uniforms
+  gl.uniform1i(
+    sd.uniforms.state,
+    0,
+  )
+
+  gl.uniform2fv(
+    sd.uniforms.scale,
+    mSimSize.v,
+  )
+
+  // "draw" simulation
+  gl.drawArrays(
+    gl.TRIANGLE_STRIP, // quad as triangles (???)
+    0,                 // offset
+    4,                 // number of indicies (4, quad)
+  )
+}
+
+// -- c/textures
+function initTextures() {
   return {
-    pos,
-    color
+    curr: initTexture(),
+    next: initTexture(),
   }
 }
 
-function initShaderDesc(gl, vsSrc, fsSrc) {
-  const program = initShaderProgram(gl, vsSrc, fsSrc)
+function seedTexture() {
+  const gl = mGl
+
+  // enough space for rgba components at every cell
+  const size = mSimSize.w * mSimSize.h * 4
+
+  // assign a random value to each cell
+  const seed = new Uint8Array(size)
+  for (let i = 0; i < size; i += 4) {
+    const val = Math.random() > 0.5 ? 255 : 0
+    seed[i + 0] = val // r
+    seed[i + 1] = val // g
+    seed[i + 2] = val // b
+    seed[i + 3] = 255 // a
+  }
+
+  // set the texture
+  gl.bindTexture(gl.TEXTURE_2D, mTextures.curr)
+  gl.texSubImage2D(
+    gl.TEXTURE_2D,
+    0,                // lod, mipmap,
+    0,                // x-offset
+    0,                // y-offset
+    mSimSize.w,       // width
+    mSimSize.h,       // height
+    gl.RGBA,          // color component format
+    gl.UNSIGNED_BYTE, // component data type
+    seed,             // source
+    0,                // source offset
+  )
+}
+
+function swapTextures() {
+  const tmp = mTextures.curr
+  mTextures.curr = mTextures.next
+  mTextures.next = tmp
+}
+
+function initTexture() {
+  const gl = mGl
+
+  // create texture
+  const tex = gl.createTexture()
+
+  // conf texture
+  gl.bindTexture(gl.TEXTURE_2D, tex)
+
+  // conf wrapping
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
+
+  // conf interpolation (nearest means none, e.g. nearest neighbor?)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+
+  // conf tex format
+  gl.texImage2D(
+    gl.TEXTURE_2D,    // target
+    0,                // lod, mipmap
+    gl.RGBA,          // color component format
+    mSimSize.w,       // width
+    mSimSize.h,       // height
+    0,                // border
+    gl.RGBA,          // texel format
+    gl.UNSIGNED_BYTE, // component data type
+    null,             // source
+  )
+
+  return tex
+}
+
+// -- c/shaders
+function initShaderDescs(srcs) {
+  const [
+    simVsSrc,
+    simFsSrc,
+    drawVsSrc,
+    drawFsSrc,
+  ] = srcs
+
+  return {
+    sim: initShaderDesc(
+      simVsSrc,
+      simFsSrc
+    ),
+    draw: initShaderDesc(
+      drawVsSrc,
+      drawFsSrc
+    ),
+  }
+}
+
+function initShaderDesc(vsSrc, fsSrc) {
+  const gl = mGl
+
+  // create program
+  const program = initShaderProgram(vsSrc, fsSrc)
   if (program == null) {
     return null
   }
 
+  // tag program with locations for shader props
   return {
     program,
     attribs: {
       pos: gl.getAttribLocation(program, "pos"),
-      color: gl.getAttribLocation(program, "color"),
     },
     uniforms: {
-      view: gl.getUniformLocation(program, "view"),
-      proj: gl.getUniformLocation(program, "proj"),
+      state: gl.getUniformLocation(program, "state"),
+      scale: gl.getUniformLocation(program, "scale"),
     },
   }
 }
 
-function initShaderProgram(gl, vsSrc, fsSrc) {
+function initShaderProgram(vsSrc, fsSrc) {
+  const gl = mGl
+
   // init vertex and fragment shaders
-  const vs = initShader(gl, gl.VERTEX_SHADER, vsSrc)
+  const vs = initShader(gl.VERTEX_SHADER, vsSrc)
   if (vs == null) {
     return null
   }
 
-  const fs = initShader(gl, gl.FRAGMENT_SHADER, fsSrc)
+  const fs = initShader(gl.FRAGMENT_SHADER, fsSrc)
   if (fs == null) {
     return null
   }
@@ -195,7 +322,10 @@ function initShaderProgram(gl, vsSrc, fsSrc) {
   return program
 }
 
-function initShader(gl, type, src) {
+function initShader(type, src) {
+  const gl = mGl
+
+  // create shader
   const shader = gl.createShader(type);
 
   // compile source
@@ -212,15 +342,63 @@ function initShader(gl, type, src) {
   return shader
 }
 
+// -- c/buffers
+function initBuffers() {
+  const gl = mGl
+
+  // create pos buffer
+  const pos = gl.createBuffer()
+
+  // define shape (quad)
+  const positions = [
+    -1.0, -1.0,
+    1.0, -1.0,
+    -1.0, 1.0,
+    1.0, 1.0
+  ]
+
+  // pass data into pos buffer
+  gl.bindBuffer(gl.ARRAY_BUFFER, pos)
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW)
+
+  // exports
+  return {
+    pos,
+  }
+}
+
+// -- c/framebuffers
+function initFramebuffers() {
+  const gl = mGl
+
+  return {
+    step: gl.createFramebuffer()
+  }
+}
+
+// -- c/helpers
+function initSize(w, h) {
+  return {
+    v: new Float32Array([w, h]),
+    get w() {
+      return this.v[0]
+    },
+    get h() {
+      return this.v[1]
+    }
+  }
+}
+
 // -- boostrap --
 (async function load() {
   // wait for the gl-matrix, the window, and the shader srcs
-  const [_m, _w, srcs] = await Promise.all([
-    import("./lib/gl-matrix@3.3.0.min.js"),
+  const [_m, srcs] = await Promise.all([
     loadWindow(),
     loadShaders([
       "./sim/sim.vert",
       "./sim/sim.frag",
+      "./draw/draw.vert",
+      "./draw/draw.frag",
     ])
   ])
 
