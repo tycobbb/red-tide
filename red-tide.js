@@ -1,4 +1,4 @@
-function main() {
+async function main(srcs) {
   // start program
   const canvas = document.getElementById("canvas")
   const gl = canvas.getContext("webgl")
@@ -8,40 +8,20 @@ function main() {
     return
   }
 
-  const vs = `
-    attribute vec4 pos;
-    attribute vec4 color;
-
-    uniform mat4 view;
-    uniform mat4 proj;
-
-    varying lowp vec4 vcolor;
-
-    void main() {
-      gl_Position = proj * view * pos;
-      vcolor = color;
-    }
-  `
-
-  const fs = `
-    varying lowp vec4 vcolor;
-
-    void main() {
-      gl_FragColor = vcolor;
-    }
-  `
-
   const buffers = initBuffers(
     gl,
   )
 
+  const [vs, fs] = srcs
   const shaderDesc = initShaderDesc(
     gl,
     vs,
     fs,
   )
 
-  drawScene(gl, shaderDesc, buffers)
+  if (shaderDesc != null) {
+    drawScene(gl, shaderDesc, buffers)
+  }
 }
 
 function drawScene(gl, shaderDesc, buffers) {
@@ -234,20 +214,33 @@ function initShader(gl, type, src) {
 
 // -- boostrap --
 (async function load() {
-  // a promise that fires when the window is loaded
-  const win = new Promise((resolve) => {
+  // wait for the gl-matrix, the window, and the shader srcs
+  const [_m, _w, srcs] = await Promise.all([
+    import("./lib/gl-matrix@3.3.0.min.js"),
+    loadWindow(),
+    loadShaders([
+      "./sim/sim.vert",
+      "./sim/sim.frag",
+    ])
+  ])
+
+  // then start
+  main(srcs)
+})()
+
+function loadWindow() {
+  return new Promise((resolve) => {
     window.addEventListener("load", function listener() {
       window.removeEventListener("load", listener)
       resolve()
     })
   })
+}
 
-  // wait for the window and gl-matrix
-  await Promise.all([
-    win,
-    import("./lib/gl-matrix@3.3.0.min.js")
-  ])
-
-  // then start
-  main()
-})()
+function loadShaders(paths) {
+  return Promise.all(paths.map(async (p) => {
+    const r = await fetch(p)
+    const t = await r.text()
+    return t
+  }))
+}
