@@ -10,20 +10,27 @@ function main() {
 
   const vs = `
     attribute vec4 pos;
+    attribute vec4 color;
 
     uniform mat4 view;
     uniform mat4 proj;
 
+    varying lowp vec4 vcolor;
+
     void main() {
       gl_Position = proj * view * pos;
+      vcolor = color;
     }
   `
 
   const fs = `
+    varying lowp vec4 vcolor;
+
     void main() {
-      gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+      gl_FragColor = vcolor;
     }
   `
+
   const buffers = initBuffers(
     gl,
   )
@@ -77,7 +84,7 @@ function drawScene(gl, shaderDesc, buffers) {
   // conf how to pull pos vecs out of the pos buffer
   gl.bindBuffer(gl.ARRAY_BUFFER, buffers.pos)
   gl.vertexAttribPointer(
-    shaderDesc.attribs.pos, // location
+    shaderDesc.attribs.pos,    // location
     2,                         // n components per vec
     gl.FLOAT,                  // data type of component
     false,                     // normalize?
@@ -86,6 +93,19 @@ function drawScene(gl, shaderDesc, buffers) {
   )
 
   gl.enableVertexAttribArray(shaderDesc.attribs.pos)
+
+  // conf how to pull color vecs out of the color buffer
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.color)
+  gl.vertexAttribPointer(
+    shaderDesc.attribs.color,  // location
+    4,                         // n components per vec
+    gl.FLOAT,                  // data type of component
+    false,                     // normalize?
+    0,                         // stride, n bytes per item; 0 = use n components * type size (2 * 4)
+    0,                         // offset, start pos in bytes
+  )
+
+  gl.enableVertexAttribArray(shaderDesc.attribs.color)
 
   // conf shader program
   gl.useProgram(shaderDesc.program)
@@ -115,9 +135,6 @@ function initBuffers(gl) {
   // create position buffer
   const pos = gl.createBuffer()
 
-  // operate on the position buffer
-  gl.bindBuffer(gl.ARRAY_BUFFER, pos)
-
   // define shape
   const positions = [
     -1.0, 1.0,
@@ -127,14 +144,28 @@ function initBuffers(gl) {
   ]
 
   // pass data to position buffer
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array(positions),
-    gl.STATIC_DRAW,
-  )
+  gl.bindBuffer(gl.ARRAY_BUFFER, pos)
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW)
 
+  // create color buffer
+  const color = gl.createBuffer()
+
+  // define colors
+  const colors = [
+    1.0, 1.0, 1.0, 1.0,
+    1.0, 0.0, 0.0, 1.0,
+    0.0, 1.0, 0.0, 1.0,
+    0.0, 0.0, 1.0, 1.0,
+  ]
+
+  // pass data to color buffer
+  gl.bindBuffer(gl.ARRAY_BUFFER, color)
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW)
+
+  // export
   return {
-    pos
+    pos,
+    color
   }
 }
 
@@ -148,6 +179,7 @@ function initShaderDesc(gl, vsSrc, fsSrc) {
     program,
     attribs: {
       pos: gl.getAttribLocation(program, "pos"),
+      color: gl.getAttribLocation(program, "color"),
     },
     uniforms: {
       view: gl.getUniformLocation(program, "view"),
