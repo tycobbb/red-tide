@@ -14,7 +14,7 @@ let mBuffers = null
 let mShaderDescs = null
 
 // -- lifetime --
-async function main(srcs) {
+function main(srcs) {
   // set props
   mCanvas = document.getElementById("canvas")
   if (mCanvas == null) {
@@ -52,9 +52,14 @@ async function main(srcs) {
   seedTexture()
 
   // start loop
+  loop()
+}
+
+function loop() {
   sim()
   swapTextures()
   draw()
+  requestAnimationFrame(loop)
 }
 
 // -- commands --
