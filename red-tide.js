@@ -1,11 +1,13 @@
 // -- constants --
 const kScale = 4
+const kFrameScale = 60 / 15
 
 // -- props -
 let mCanvas = null
 let mGl = null
 let mSize = null
 let mSimSize = null
+let mFrame = 0
 
 // -- p/gl
 let mTextures = null
@@ -56,9 +58,17 @@ function main(srcs) {
 }
 
 function loop() {
-  sim()
-  swapTextures()
-  draw()
+  // only run every kFrameScale frames
+  if (mFrame == 0) {
+    sim()
+    swapTextures()
+    draw()
+  }
+
+  // track looping frame
+  mFrame = (mFrame + 1) % kFrameScale
+
+  // loop again
   requestAnimationFrame(loop)
 }
 
@@ -145,11 +155,11 @@ function draw() {
   gl.bindBuffer(gl.ARRAY_BUFFER, mBuffers.pos)
   gl.vertexAttribPointer(
     sd.attribs.pos, // location
-    2,                       // n components per vec
-    gl.FLOAT,                // data type of component
-    false,                   // normalize?
-    0,                       // stride, n bytes per item; 0 = use n components * type size (2 * 4)
-    0,                       // offset, start pos in bytes
+    2,              // n components per vec
+    gl.FLOAT,       // data type of component
+    false,          // normalize?
+    0,              // stride, n bytes per item; 0 = use n components * type size (2 * 4)
+    0,              // offset, start pos in bytes
   )
 
   gl.enableVertexAttribArray(sd.attribs.pos)
@@ -165,7 +175,7 @@ function draw() {
 
   gl.uniform2fv(
     sd.uniforms.scale,
-    mSimSize.v,
+    mSize.v,
   )
 
   // "draw" simulation
