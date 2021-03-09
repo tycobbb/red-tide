@@ -2,13 +2,16 @@
 precision mediump float;
 #endif
 
-uniform sampler2D state;
-uniform vec2 scale;
+// -- uniforms --
+uniform sampler2D uState;
+uniform vec2 uScale;
 
+// -- helpers --
 int get(vec2 offset) {
-  return int(texture2D(state, (gl_FragCoord.xy + offset) / scale).r);
+  return int(texture2D(uState, (gl_FragCoord.xy + offset) / uScale).r);
 }
 
+// -- program --
 void main() {
   int sum = (
     get(vec2(-1.0, -1.0)) +

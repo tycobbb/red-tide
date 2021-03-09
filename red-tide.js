@@ -2,6 +2,10 @@
 const kScale = 4
 const kFrameScale = 60 / 15
 
+// -- c/theme
+const kBgColor = new Float32Array([0.27, 0.46, 0.45, 1.00])
+const kFgColor = new Float32Array([0.86, 0.39, 0.37, 1.00])
+
 // -- props -
 let mCanvas = null
 let mGl = null
@@ -178,6 +182,16 @@ function draw() {
     mSize.v,
   )
 
+  gl.uniform4fv(
+    sd.uniforms.colors.bg,
+    kBgColor,
+  )
+
+  gl.uniform4fv(
+    sd.uniforms.colors.fg,
+    kFgColor,
+  )
+
   // "draw" simulation
   gl.drawArrays(
     gl.TRIANGLE_STRIP, // quad as triangles (???)
@@ -267,6 +281,8 @@ function initTexture() {
 
 // -- c/shaders
 function initShaderDescs(srcs) {
+  const gl = mGl
+
   const [
     simVsSrc,
     simFsSrc,
@@ -277,34 +293,48 @@ function initShaderDescs(srcs) {
   return {
     sim: initShaderDesc(
       simVsSrc,
-      simFsSrc
+      simFsSrc,
+      (program) => ({
+        attribs: {
+          pos: gl.getAttribLocation(program, "aPos"),
+        },
+        uniforms: {
+          state: gl.getUniformLocation(program, "uState"),
+          scale: gl.getUniformLocation(program, "uScale"),
+        }
+      })
     ),
     draw: initShaderDesc(
       drawVsSrc,
-      drawFsSrc
+      drawFsSrc,
+      (program) => ({
+        attribs: {
+          pos: gl.getAttribLocation(program, "aPos"),
+        },
+        uniforms: {
+          state: gl.getUniformLocation(program, "uState"),
+          scale: gl.getUniformLocation(program, "uScale"),
+          colors: {
+            bg: gl.getUniformLocation(program, "uBgColor"),
+            fg: gl.getUniformLocation(program, "uFgColor"),
+          },
+        }
+      })
     ),
   }
 }
 
-function initShaderDesc(vsSrc, fsSrc) {
-  const gl = mGl
-
+function initShaderDesc(vsSrc, fsSrc, locations) {
   // create program
   const program = initShaderProgram(vsSrc, fsSrc)
   if (program == null) {
     return null
   }
 
-  // tag program with locations for shader props
+  // tag program with locations for shader props (if js could map optionals...)
   return {
     program,
-    attribs: {
-      pos: gl.getAttribLocation(program, "pos"),
-    },
-    uniforms: {
-      state: gl.getUniformLocation(program, "state"),
-      scale: gl.getUniformLocation(program, "scale"),
-    },
+    ...locations(program)
   }
 }
 

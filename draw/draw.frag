@@ -2,9 +2,14 @@
 precision mediump float;
 #endif
 
-uniform sampler2D state;
-uniform vec2 scale;
+// -- uniforms --
+uniform sampler2D uState;
+uniform vec2 uScale;
+uniform vec4 uFgColor;
+uniform vec4 uBgColor;
 
+// -- program --
 void main() {
-  gl_FragColor = texture2D(state, gl_FragCoord.xy / scale);
+  vec4 sample = texture2D(uState, gl_FragCoord.xy / uScale);
+  gl_FragColor = sample.r == 1.0 ? uFgColor : uBgColor;
 }
