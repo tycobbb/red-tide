@@ -1,7 +1,10 @@
+// -- uniforms --
+uniform sampler2D uSampler;
+
 // -- props --
-varying lowp vec4 vcolor;
+varying highp vec2 vTexPos;
 
 // -- program --
 void main() {
-  gl_FragColor = vcolor;
+  gl_FragColor = texture2D(uSampler, vTexPos);
 }

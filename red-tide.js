@@ -11,10 +11,11 @@ let mSimSize = null
 
 // -- p/gl
 let mBuffers = null
+let mTextures = null
 let mShaderDescs = null
 
 // -- lifetime --
-function main(srcs) {
+function main(assets) {
   // set props
   mCanvas = document.getElementById("canvas")
   if (mCanvas == null) {
@@ -35,7 +36,8 @@ function main(srcs) {
 
   // init gl props
   mBuffers = initBuffers()
-  mShaderDescs = initShaderDescs(srcs)
+  mTextures = initTextures(assets.textures)
+  mShaderDescs = initShaderDescs(assets.shaders)
 
   if (mShaderDescs.draw == null) {
     return
@@ -81,31 +83,31 @@ function draw() {
   mat4.translate(
     view,
     view,
-    [-0.0, 0.0, -6.0]        // translate back 6 units
+    [0.0, 0.0, -5.0]  // translate back 6 units
   )
 
   // conf how to pull pos vecs out of the pos buffer
   gl.bindBuffer(gl.ARRAY_BUFFER, mBuffers.pos)
   gl.vertexAttribPointer(
     sd.attribs.pos,    // location
-    2,                         // n components per vec
-    gl.FLOAT,                  // data type of component
-    false,                     // normalize?
-    0,                         // stride, n bytes per item; 0 = use n components * type size (2 * 4)
-    0,                         // offset, start pos in bytes
+    2,                 // n components per vec
+    gl.FLOAT,          // data type of component
+    false,             // normalize?
+    0,                 // stride, n bytes per item; 0 = use n components * type size (2 * 4)
+    0,                 // offset, start pos in bytes
   )
 
   gl.enableVertexAttribArray(sd.attribs.pos)
 
-  // conf how to pull color vecs out of the color buffer
-  gl.bindBuffer(gl.ARRAY_BUFFER, mBuffers.color)
+  // conf how to pull tex pos vecs out of the tex pos buffer
+  gl.bindBuffer(gl.ARRAY_BUFFER, mBuffers.texPos)
   gl.vertexAttribPointer(
-    sd.attribs.color,  // location
-    4,                         // n components per vec
-    gl.FLOAT,                  // data type of component
-    false,                     // normalize?
-    0,                         // stride, n bytes per item; 0 = use n components * type size (2 * 4)
-    0,                         // offset, start pos in bytes
+    sd.attribs.texPos, // location
+    2,                 // n components per vec
+    gl.FLOAT,          // data type of component
+    false,             // normalize?
+    0,                 // stride, n bytes per item; 0 = use n components * type size (2 * 4)
+    0,                 // offset, start pos in bytes
   )
 
   gl.enableVertexAttribArray(sd.attribs.color)
@@ -126,6 +128,10 @@ function draw() {
     view,
   )
 
+  gl.activeTexture(gl.TEXTURE0)
+  gl.bindTexture(gl.TEXTURE_2D, mTextures.red)
+  gl.uniform1i(sd.uniforms.sampler, 0)
+
   // DRAW!
   gl.drawArrays(
     gl.TRIANGLE_STRIP,
@@ -143,59 +149,92 @@ function initBuffers() {
 
   // define shape
   const positions = [
-    -1.0, 1.0,
-    1.0, 1.0,
-    -1.0, -1.0,
-    1.0, -1.0,
+    -0.5, 0.5,
+    0.5, 0.5,
+    -0.5, -0.5,
+    0.5, -0.5,
   ]
 
   // pass data to position buffer
   gl.bindBuffer(gl.ARRAY_BUFFER, pos)
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW)
 
-  // create color buffer
-  const color = gl.createBuffer()
+  // create texture buffer
+  const texPos = gl.createBuffer()
 
-  // define colors
-  const colors = [
-    1.0, 1.0, 1.0, 1.0,
-    1.0, 0.0, 0.0, 1.0,
-    0.0, 1.0, 0.0, 1.0,
-    0.0, 0.0, 1.0, 1.0,
+  // define texture coords
+  const texPositions = [
+    0.0, 0.0,
+    1.0, 0.0,
+    1.0, 1.0,
+    0.0, 1.0,
   ]
 
   // pass data to color buffer
-  gl.bindBuffer(gl.ARRAY_BUFFER, color)
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW)
+  gl.bindBuffer(gl.ARRAY_BUFFER, texPos)
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texPositions), gl.STATIC_DRAW)
 
   // export
   return {
     pos,
-    color
+    texPos,
   }
+}
+
+// -- c/textures
+function initTextures(srcs) {
+  return {
+    red: initTexture(srcs.red),
+  }
+}
+
+function initTexture(img) {
+  const gl = mGl
+
+  // create texture
+  const tex = gl.createTexture()
+
+  // conf texture
+  gl.bindTexture(gl.TEXTURE_2D, tex)
+
+  // set texture data
+  gl.texImage2D(
+    gl.TEXTURE_2D,    // target
+    0,                // lod, mipmap
+    gl.RGBA,          // color component format
+    gl.RGBA,          // texel format
+    gl.UNSIGNED_BYTE, // component data type
+    img,              // source
+  )
+
+  // generate mipmaps for this image, (must be power of 2)
+  gl.generateMipmap(gl.TEXTURE_2D);
+
+  return tex
 }
 
 // -- c/shaders
 function initShaderDescs(srcs) {
   const gl = mGl
 
-  const [
-    drawVsSrc,
-    drawFsSrc,
-  ] = srcs
+  // grab srcs
+  const vsSrc = srcs.draw.vert
+  const fsSrc = srcs.draw.frag
 
+  // build shader descriptions
   return {
     draw: initShaderDesc(
-      drawVsSrc,
-      drawFsSrc,
+      vsSrc,
+      fsSrc,
       (program) => ({
         attribs: {
           pos: gl.getAttribLocation(program, "aPos"),
-          color: gl.getAttribLocation(program, "aColor"),
+          color: gl.getAttribLocation(program, "aTexPos"),
         },
         uniforms: {
           view: gl.getUniformLocation(program, "uView"),
           proj: gl.getUniformLocation(program, "uProj"),
+          sampler: gl.getUniformLocation(program, "uSampler"),
         },
       })
     ),
@@ -280,32 +319,119 @@ function initSize(w, h) {
 
 // -- boostrap --
 (async function load() {
-  // wait for the gl-matrix, the window, and the shader srcs
-  const [_w, srcs] = await Promise.all([
+  // wait for the window and all assets
+  const [_w, assets] = await Promise.all([
     loadWindow(),
-    loadShaders([
-      "./draw/draw.vert",
-      "./draw/draw.frag",
-    ])
+    loadAssets({
+      textures: {
+        red: "./textures/red.png",
+      },
+      shaders: {
+        draw: {
+          vert: "./draw/draw.vert",
+          frag: "./draw/draw.frag",
+        },
+      },
+    }),
   ])
 
   // then start
-  main(srcs)
+  main(assets)
 })()
 
 function loadWindow() {
+  return load(window)
+}
+
+function load(el) {
   return new Promise((resolve) => {
-    window.addEventListener("load", function listener() {
-      window.removeEventListener("load", listener)
+    el.addEventListener("load", function listener() {
+      el.removeEventListener("load", listener)
       resolve()
     })
   })
 }
 
-function loadShaders(paths) {
-  return Promise.all(paths.map(async (p) => {
-    const res = await fetch(p)
-    const src = await res.text()
-    return src
-  }))
+async function loadAssets(assets) {
+  // mirror the asset structure
+  const memo = {}
+
+  // flatten assets into list of [keypath, path]
+  const keypaths = makeKeypaths(assets)
+
+  // fetch all the assets
+  const promises = keypaths.map(async ([keypath, path]) => {
+    // fetch asset
+    const res = await fetch(path)
+    const val = await parseAsset(res)
+
+    // write the val back to the correct spot in memo
+    const n = keypath.length
+
+    let obj = memo
+    for (let i = 0; i < n - 1; i++) {
+      const key = keypath[i]
+      if (obj[key] == null) {
+        obj = obj[key] = {}
+      } else {
+        obj = obj[key]
+      }
+    }
+
+    // make sure to merge any props
+    obj[keypath[n - 1]] = val
+
+    // return val
+    return val
+  })
+
+  // wait for all the promises to finish
+  await Promise.all(promises)
+
+  // and return the mirrored structure
+  return memo
+}
+
+function parseAsset(res) {
+  switch (res.headers.get("Content-Type")) {
+    case "image/png":
+      return parseImage(res)
+    default: // plain/text, shader
+      return res.text()
+  }
+}
+
+async function parseImage(res) {
+  const blob = await res.blob()
+
+  // build img element
+  const img = new Image()
+  img.src = URL.createObjectURL(blob)
+
+  // wait for it to load; local so it should be 1-frame?
+  await load(img)
+
+  return img
+}
+
+function makeKeypaths(paths) {
+  const entries = []
+
+  for (const key in paths) {
+    const val = paths[key]
+
+    if (!(val instanceof Object)) {
+      entries.push([[key], val])
+    } else {
+      const nested = makeKeypaths(val)
+
+      for (const entry of nested) {
+        entry[0].unshift(key)
+      }
+
+      entries.push(...nested)
+    }
+  }
+
+  return entries
 }
