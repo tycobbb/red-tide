@@ -57,6 +57,10 @@ function draw() {
   const gl = mGl
   const sd = mShaderDescs.draw
 
+  // set blend mode
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
   // background color, black
   gl.clearColor(0.0, 0.0, 0.0, 1.0)
 
@@ -132,11 +136,13 @@ function draw() {
   gl.bindTexture(gl.TEXTURE_2D, mTextures.red)
   gl.uniform1i(sd.uniforms.sampler, 0)
 
-  // DRAW!
-  gl.drawArrays(
-    gl.TRIANGLE_STRIP,
-    0, // offset
-    4, // n vertices
+  // draw everything using vertex indices
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mBuffers.indices)
+  gl.drawElements(
+    gl.TRIANGLES,
+    6,                 // n vertices
+    gl.UNSIGNED_SHORT, // type (of index)
+    0,                 // offset
   )
 }
 
@@ -146,38 +152,43 @@ function initBuffers() {
 
   // create position buffer
   const pos = gl.createBuffer()
-
-  // define shape
-  const positions = [
+  const posd = [
     -0.5, 0.5,
-    0.5, 0.5,
     -0.5, -0.5,
     0.5, -0.5,
+    0.5, 0.5,
   ]
 
-  // pass data to position buffer
   gl.bindBuffer(gl.ARRAY_BUFFER, pos)
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW)
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(posd), gl.STATIC_DRAW)
 
   // create texture buffer
   const texPos = gl.createBuffer()
-
-  // define texture coords
-  const texPositions = [
+  const texPosd = [
     0.0, 0.0,
     1.0, 0.0,
     1.0, 1.0,
     0.0, 1.0,
   ]
 
-  // pass data to color buffer
   gl.bindBuffer(gl.ARRAY_BUFFER, texPos)
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texPositions), gl.STATIC_DRAW)
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texPosd), gl.STATIC_DRAW)
+
+  // create index buffer
+  const indices = gl.createBuffer();
+  const indicesd = [
+    0, 1, 2,
+    0, 2, 3,
+  ]
+
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indices)
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indicesd), gl.STATIC_DRAW)
 
   // export
   return {
     pos,
     texPos,
+    indices,
   }
 }
 
