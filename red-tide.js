@@ -3,16 +3,36 @@ import "./lib/gl-matrix@3.3.0.min.js"
 // -- deps --
 const { mat4 } = glMatrix
 
+// -- constants --
+const knParticles = 10
+const knVerts = 4
+const knPos = 8
+const knPosLen = knPos * knParticles
+const knTexPos = 8
+const knTexPosLen = knTexPos * knParticles
+const knIndices = 6
+const knIndicesLen = knIndices * knParticles
+
+// -- c/style
+const kRed = new Float32Array([0.86, 0.39, 0.37, 1.00])
+
 // -- props -
 let mCanvas = null
 let mGl = null
 let mSize = null
-let mSimSize = null
+
+// -- p/emitter
+let mEmitter = null
 
 // -- p/gl
 let mBuffers = null
 let mTextures = null
 let mShaderDescs = null
+
+// -- p/gl/data
+const dPos = new Float32Array(knPosLen)
+const dTexPos = new Float32Array(knTexPosLen)
+const dIndices = new Uint16Array(knIndicesLen)
 
 // -- lifetime --
 function main(assets) {
@@ -34,6 +54,9 @@ function main(assets) {
     Number.parseInt(mCanvas.getAttribute("height")),
   )
 
+  // init emitter
+  mEmitter = initEmitter()
+
   // init gl props
   mBuffers = initBuffers()
   mTextures = initTextures(assets.textures)
@@ -49,6 +72,7 @@ function main(assets) {
 
 // -- commands --
 function loop() {
+  mEmitter.move(2, 0.0, 0.01)
   draw()
   requestAnimationFrame(loop)
 }
@@ -87,11 +111,14 @@ function draw() {
   mat4.translate(
     view,
     view,
-    [0.0, 0.0, -5.0]  // translate back 6 units
+    [0.0, 0.0, -60.0]  // translate back n units
   )
 
-  // conf how to pull pos vecs out of the pos buffer
+  // update pos buffer
   gl.bindBuffer(gl.ARRAY_BUFFER, mBuffers.pos)
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, dPos);
+
+  // conf mapping to attrib
   gl.vertexAttribPointer(
     sd.attribs.pos,    // location
     2,                 // n components per vec
@@ -103,7 +130,7 @@ function draw() {
 
   gl.enableVertexAttribArray(sd.attribs.pos)
 
-  // conf how to pull tex pos vecs out of the tex pos buffer
+  // update tex pos buffer
   gl.bindBuffer(gl.ARRAY_BUFFER, mBuffers.texPos)
   gl.vertexAttribPointer(
     sd.attribs.texPos, // location
@@ -114,7 +141,7 @@ function draw() {
     0,                 // offset, start pos in bytes
   )
 
-  gl.enableVertexAttribArray(sd.attribs.color)
+  gl.enableVertexAttribArray(sd.attribs.texPos)
 
   // conf shader program
   gl.useProgram(sd.program)
@@ -132,18 +159,97 @@ function draw() {
     view,
   )
 
+  gl.uniform4fv(
+    sd.uniforms.color,
+    kRed,
+  )
+
   gl.activeTexture(gl.TEXTURE0)
-  gl.bindTexture(gl.TEXTURE_2D, mTextures.red)
+  gl.bindTexture(gl.TEXTURE_2D, mTextures.tide)
   gl.uniform1i(sd.uniforms.sampler, 0)
 
   // draw everything using vertex indices
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mBuffers.indices)
   gl.drawElements(
     gl.TRIANGLES,
-    6,                 // n vertices
+    knIndicesLen,      // n vertices
     gl.UNSIGNED_SHORT, // type (of index)
     0,                 // offset
   )
+}
+
+// -- c/particles
+function initEmitter() {
+  // props
+  const mParticles = new Array(knParticles)
+  const mX = 0
+  const mY = 0
+
+  // define emitter
+  const emitter = {
+    init() {
+      for (let i = 0; i < knParticles; i++) {
+        // init particle
+        mParticles[i] = {
+          x: i * 2,
+          y: 0,
+          w: 1.0,
+          h: 1.0,
+        }
+
+        // sync gl vert data
+        this.sync(i)
+
+        // seed static gl data
+        // TODO: probably a way to conserve some memory here?
+        dTexPos.set([
+          0.0, 0.0,
+          1.0, 0.0,
+          1.0, 1.0,
+          0.0, 1.0,
+        ], i * knTexPos)
+
+        const di = i * knVerts
+        dIndices.set([
+          di + 0, di + 1, di + 2,
+          di + 0, di + 2, di + 3,
+        ], i * knIndices)
+      }
+    },
+    set(i, x, y) {
+      const p = mParticles[i]
+      p.x = x
+      p.y = y
+
+      this.sync(i)
+    },
+    move(i, dx, dy) {
+      const p = mParticles[i]
+      p.x += dx
+      p.y += dy
+
+      this.sync(i)
+    },
+    sync(i) {
+      const p = mParticles[i]
+      const x = p.x
+      const y = p.y
+      const w2 = p.w / 2.0
+      const h2 = p.h / 2.0
+
+      dPos.set([
+        x - w2, y + h2,
+        x - w2, y - h2,
+        x + w2, y - h2,
+        x + w2, y + h2,
+      ], i * knPos)
+    }
+  }
+
+  // initialize particles
+  emitter.init()
+
+  return emitter
 }
 
 // -- c/buffers
@@ -152,37 +258,18 @@ function initBuffers() {
 
   // create position buffer
   const pos = gl.createBuffer()
-  const posd = [
-    -0.5, 0.5,
-    -0.5, -0.5,
-    0.5, -0.5,
-    0.5, 0.5,
-  ]
-
   gl.bindBuffer(gl.ARRAY_BUFFER, pos)
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(posd), gl.STATIC_DRAW)
+  gl.bufferData(gl.ARRAY_BUFFER, dPos, gl.DYNAMIC_DRAW)
 
   // create texture buffer
   const texPos = gl.createBuffer()
-  const texPosd = [
-    0.0, 0.0,
-    1.0, 0.0,
-    1.0, 1.0,
-    0.0, 1.0,
-  ]
-
   gl.bindBuffer(gl.ARRAY_BUFFER, texPos)
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texPosd), gl.STATIC_DRAW)
+  gl.bufferData(gl.ARRAY_BUFFER, dTexPos, gl.STATIC_DRAW)
 
   // create index buffer
   const indices = gl.createBuffer();
-  const indicesd = [
-    0, 1, 2,
-    0, 2, 3,
-  ]
-
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indices)
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indicesd), gl.STATIC_DRAW)
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, dIndices, gl.STATIC_DRAW)
 
   // export
   return {
@@ -195,7 +282,7 @@ function initBuffers() {
 // -- c/textures
 function initTextures(srcs) {
   return {
-    red: initTexture(srcs.red),
+    tide: initTexture(srcs.tide),
   }
 }
 
@@ -240,12 +327,13 @@ function initShaderDescs(srcs) {
       (program) => ({
         attribs: {
           pos: gl.getAttribLocation(program, "aPos"),
-          color: gl.getAttribLocation(program, "aTexPos"),
+          texPos: gl.getAttribLocation(program, "aTexPos"),
         },
         uniforms: {
           view: gl.getUniformLocation(program, "uView"),
           proj: gl.getUniformLocation(program, "uProj"),
           sampler: gl.getUniformLocation(program, "uSampler"),
+          color: gl.getUniformLocation(program, "uColor"),
         },
       })
     ),
@@ -335,7 +423,7 @@ function initSize(w, h) {
     loadWindow(),
     loadAssets({
       textures: {
-        red: "./textures/red.png",
+        tide: "./textures/tide.png",
       },
       shaders: {
         draw: {
