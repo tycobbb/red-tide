@@ -1,5 +1,5 @@
-import "./lib/gl-matrix@3.3.0.min.js"
-import { repeat } from "./src/utils.js"
+import "../lib/gl-matrix@3.3.0.min.js"
+import { repeat } from "./utils.js"
 
 // -- deps --
 const { mat4 } = glMatrix
