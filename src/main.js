@@ -434,6 +434,9 @@ function initTexture(img) {
     img,              // source
   )
 
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+
   // generate mipmaps for this image, (must be power of 2)
   gl.generateMipmap(gl.TEXTURE_2D);
 
@@ -457,7 +460,7 @@ function initShaderDescs(srcs) {
         attribs: {
           pos: gl.getAttribLocation(program, "aPos"),
           texPos: gl.getAttribLocation(program, "aTexPos"),
-          color: gl.getUniformLocation(program, "aColor"),
+          color: gl.getAttribLocation(program, "aColor"),
         },
         uniforms: {
           view: gl.getUniformLocation(program, "uView"),
