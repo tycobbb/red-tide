@@ -1,22 +1,7 @@
 import { loadEl, loadAssets } from "./load.js"
+import { knParticles, kEmitRate, kEmitSpeed, kEmitAngle } from "./constants.js"
 import { init as initView, draw, initData } from "./view.js"
 import { init as initParticles, simulate, emit, isEmpty } from "./particles.js"
-
-// -- constants --
-const knParticles = 10000
-const kEmitRate = 1
-
-const kEmitAngle = initAttr({
-  min: 0.0,
-  max: Math.PI / 2,
-  crv: (s, f) => Math.pow(s, 2),
-})
-
-const kEmitSpeed = initAttr({
-  min: 0.01,
-  max: 0.05,
-  crv: (s, f) => Math.pow(s, 2),
-})
 
 // -- props -
 let mFrame = 0

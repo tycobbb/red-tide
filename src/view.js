@@ -1,5 +1,5 @@
 import "../lib/gl-matrix@3.3.0.min.js"
-import { kCameraZ, kGreen } from "./constants.js"
+import { kCameraPos, kGreen, kWaveAngle, kWaveLength, kWaveAmplitude } from "./constants.js"
 
 // -- deps --
 const { mat4 } = glMatrix
@@ -66,7 +66,6 @@ export function init(assets) {
     Number.parseInt(mCanvas.getAttribute("height")),
   )
 
-
   // init gl drawing props
   mBuffers = initBuffers()
   mTextures = initTextures(assets.textures)
@@ -116,7 +115,7 @@ export function draw(time) {
   mat4.translate(
     view,
     view,
-    [0.0, 0.0, kCameraZ]  // translate back n units
+    kCameraPos,
   )
 
   // update pos buffer
@@ -176,11 +175,10 @@ export function draw(time) {
     view,
   )
 
-  console.log("time", time)
-  gl.uniform1f(
-    sd.uniforms.time,
-    time,
-  )
+  gl.uniform1f(sd.uniforms.time, time)
+  gl.uniform1f(sd.uniforms.waveAngle, kWaveAngle)
+  gl.uniform1f(sd.uniforms.waveLength, kWaveLength)
+  gl.uniform1f(sd.uniforms.waveAmplitude, kWaveAmplitude)
 
   gl.activeTexture(gl.TEXTURE0)
   gl.bindTexture(gl.TEXTURE_2D, mTextures.tide)
@@ -326,6 +324,9 @@ function initShaderDescs(srcs) {
           view: gl.getUniformLocation(program, "uView"),
           proj: gl.getUniformLocation(program, "uProj"),
           time: gl.getUniformLocation(program, "uTime"),
+          waveAngle: gl.getUniformLocation(program, "uWaveAngle"),
+          waveLength: gl.getUniformLocation(program, "uWaveLength"),
+          waveAmplitude: gl.getUniformLocation(program, "uWaveAmplitude"),
           sampler: gl.getUniformLocation(program, "uSampler"),
         },
       })
