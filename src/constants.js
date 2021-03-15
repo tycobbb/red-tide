@@ -9,4 +9,4 @@ export const kSourceX = -25.0
 export const kSourceY = -25.0
 
 // -- physics --
-export const kDrag = 0.97
+export const kDrag = 0.999

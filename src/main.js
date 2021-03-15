@@ -3,10 +3,20 @@ import { init as initView, draw, initData } from "./view.js"
 import { init as initParticles, simulate, emit, isEmpty } from "./particles.js"
 
 // -- constants --
-const knParticles = 10
-const kEmitSpeed = 2.0
-const kEmitAngle = Math.PI / 4
-const kEmitInterval = 10
+const knParticles = 10000
+const kEmitRate = 1
+
+const kEmitAngle = initAttr({
+  min: 0.0,
+  max: Math.PI / 2,
+  crv: (s, f) => Math.pow(s, 2),
+})
+
+const kEmitSpeed = initAttr({
+  min: 0.01,
+  max: 0.05,
+  crv: (s, f) => Math.pow(s, 2),
+})
 
 // -- props -
 let mFrame = 0
@@ -34,12 +44,33 @@ function loop() {
 
 function update() {
   // spawn particles
-  if (!isEmpty() && mFrame % kEmitInterval == 0) {
-    emit(kEmitSpeed, kEmitAngle)
+  if (!isEmpty() && mFrame % kEmitRate == 0) {
+    emit(getSpeed(), getAngle())
   }
 
   // run particle simulation
   simulate()
+}
+
+// -- queries --
+function getSpeed() {
+  return kEmitSpeed.sample(mFrame)
+}
+
+function getAngle() {
+  return kEmitAngle.sample(mFrame)
+}
+
+function initAttr(props) {
+  return {
+    ...props,
+    get len() {
+      return this.max - this.min
+    },
+    sample(frame) {
+      return this.min + this.crv(Math.random(), frame) * this.len
+    }
+  }
 }
 
 // -- boostrap --

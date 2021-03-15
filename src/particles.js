@@ -78,19 +78,13 @@ export function simulate() {
     p.x += p.vx
     p.y += p.vy
 
-    if (i == 0) {
-      console.log("p", p.x, p.y)
-    }
-
     // decay velocity
     p.vx *= kDrag
-    if (Math.abs(p.vx) <= 0.01) {
-      p.vx = 0.0
-    }
-
     p.vy *= kDrag
-    if (Math.abs(p.vy) <= 0.01) {
-      p.vy = 0.0
+
+    if (p.vx + p.vy <= 0.001) {
+      p.vx = 0
+      p.vy = 0
     }
 
     syncPos(i)
