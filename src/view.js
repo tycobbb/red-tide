@@ -1,5 +1,15 @@
 import "../lib/gl-matrix@3.3.0.min.js"
-import { kCameraPos, kRed, kGreen, kFadeSpan, kWaveAngle, kWaveLength, kWaveAmplitude } from "./constants.js"
+import {
+  kCameraPos,
+  kRed1,
+  kRed2,
+  kGreen,
+  kFadeSpan,
+  kSpeedSpan,
+  kWaveAngle,
+  kWaveLength,
+  kWaveAmplitude
+} from "./constants.js"
 
 // -- deps --
 const { mat4 } = glMatrix
@@ -8,6 +18,7 @@ const { mat4 } = glMatrix
 const knVerts = 4
 const knPos = 8
 const knTexPos = 8
+const knVelocity = 8
 const knVisible = 1
 const knIndices = 6
 
@@ -26,6 +37,8 @@ let dnPos = null
 let dPos = null
 let dnTexPos = null
 let dTexPos = null
+let dnVelocity = null
+let dVelocity = null
 let dnVisible = null
 let dVisible = null
 let dnIndices = null
@@ -39,6 +52,9 @@ export function initData(len) {
 
   dnTexPos = knTexPos * len
   dTexPos = new Float32Array(dnTexPos)
+
+  dnVelocity = knVelocity * len
+  dVelocity = new Float32Array(dnVelocity)
 
   dnVisible = knVisible * len
   dVisible = new Uint8Array(dnVisible)
@@ -145,7 +161,21 @@ export function draw(time) {
 
   gl.enableVertexAttribArray(sd.attribs.texPos)
 
-  // // update "visible" buffer buffer
+  // update velocity buffer
+  gl.bindBuffer(gl.ARRAY_BUFFER, mBuffers.velocity)
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, dVelocity)
+  gl.vertexAttribPointer(
+    sd.attribs.velocity,    // location
+    2,                 // n components per vec
+    gl.FLOAT,          // data type of component
+    false,             // normalize?
+    0,                 // stride, n bytes per item; 0 = use n components * type size (2 * 4)
+    0,                 // offset, start pos in bytes
+  )
+
+  gl.enableVertexAttribArray(sd.attribs.velocity)
+
+  // update "visible" buffer
   // gl.bindBuffer(gl.ARRAY_BUFFER, mBuffers.visible)
   // gl.bufferSubData(gl.ARRAY_BUFFER, 0, dVisible)
   // gl.vertexAttribPointer(
@@ -176,9 +206,11 @@ export function draw(time) {
   )
 
   // conf style uniforms
-  gl.uniform4fv(sd.uniforms.fgColor, kRed)
+  gl.uniform4fv(sd.uniforms.fgColor1, kRed1)
+  gl.uniform4fv(sd.uniforms.fgColor2, kRed2)
   gl.uniform4fv(sd.uniforms.bgColor, kGreen)
   gl.uniform2fv(sd.uniforms.fadeSpan, kFadeSpan)
+  gl.uniform2fv(sd.uniforms.speedSpan, kSpeedSpan)
 
   // conf wave uniforms
   gl.uniform1f(sd.uniforms.time, time)
@@ -212,6 +244,13 @@ export function setTexPos(i, values) {
   dTexPos.set(
     values,
     i * knTexPos,
+  )
+}
+
+export function setVelocity(i, values) {
+  dVelocity.set(
+    values,
+    i * knVelocity,
   )
 }
 
@@ -251,6 +290,11 @@ function initBuffers() {
   gl.bindBuffer(gl.ARRAY_BUFFER, texPos)
   gl.bufferData(gl.ARRAY_BUFFER, dTexPos, gl.STATIC_DRAW)
 
+  // create velocity buffer
+  const velocity = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, velocity)
+  gl.bufferData(gl.ARRAY_BUFFER, dVelocity, gl.DYNAMIC_DRAW)
+
   // create "visible" buffer
   const visible = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, visible)
@@ -265,6 +309,7 @@ function initBuffers() {
   return {
     pos,
     texPos,
+    velocity,
     visible,
     indices,
   }
@@ -325,15 +370,18 @@ function initShaderDescs(srcs) {
         attribs: {
           pos: gl.getAttribLocation(program, "aPos"),
           texPos: gl.getAttribLocation(program, "aTexPos"),
+          velocity: gl.getAttribLocation(program, "aVelocity"),
           visible: gl.getAttribLocation(program, "aVisible"),
         },
         uniforms: {
           view: gl.getUniformLocation(program, "uView"),
           proj: gl.getUniformLocation(program, "uProj"),
           time: gl.getUniformLocation(program, "uTime"),
-          fgColor: gl.getUniformLocation(program, "uFg"),
+          fgColor1: gl.getUniformLocation(program, "uFg1"),
+          fgColor2: gl.getUniformLocation(program, "uFg2"),
           bgColor: gl.getUniformLocation(program, "uBg"),
           fadeSpan: gl.getUniformLocation(program, "uFadeSpan"),
+          speedSpan: gl.getUniformLocation(program, "uSpeedSpan"),
           waveAngle: gl.getUniformLocation(program, "uWaveAngle"),
           waveLength: gl.getUniformLocation(program, "uWaveLength"),
           waveAmplitude: gl.getUniformLocation(program, "uWaveAmplitude"),

@@ -31,8 +31,10 @@ function loop() {
 
 function update() {
   // spawn particles
-  if (!isEmpty() && mFrame % kEmitRate == 0) {
-    emit(getSpeed(), getAngle())
+  if (!isEmpty()) {
+    for (let i = 0; i < kEmitRate; i++) {
+      emit(getSpeed(), getAngle())
+    }
   }
 
   // run particle simulation

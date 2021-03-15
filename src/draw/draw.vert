@@ -5,6 +5,7 @@ const float kPi4 = PI / 4.0;
 // -- attribs --
 attribute vec4 aPos;
 attribute vec2 aTexPos;
+attribute vec2 aVelocity;
 attribute lowp float aVisible;
 
 // -- uniforms --
@@ -12,9 +13,11 @@ uniform mat4 uView;
 uniform mat4 uProj;
 
 // -- u/style
-uniform vec4 uFg;
+uniform vec4 uFg1;
+uniform vec4 uFg2;
 uniform vec4 uBg;
 uniform vec2 uFadeSpan;
+uniform vec2 uSpeedSpan;
 
 // -- u/wave
 uniform float uTime;
@@ -25,6 +28,11 @@ uniform float uWaveAmplitude;
 // -- props --
 varying highp vec2 vTexPos;
 varying lowp vec4 vColor;
+
+// -- helpers --
+float unlerp(float val, vec2 span) {
+   return min(max((val - span.x) / (span.y - span.x), 0.0), 1.0);
+}
 
 // -- program --
 void main() {
@@ -45,7 +53,7 @@ void main() {
   float mag = uWaveAmplitude * wav;
 
   // get length of point
-  float d = distance(p0.xy, vec2(0.0, 0.0));
+  float d = length(p0.xy);
 
   // modulate based on pos along cross axis (y = -x), xc
   // xc = d * sin(pi / 4 - a)
@@ -58,19 +66,20 @@ void main() {
   p.x += mag * cos(uWaveAngle);
   p.y += mag * sin(uWaveAngle);
 
-  // interpolate colors based on distance
-  float fx = uFadeSpan.x;
-  float fy = uFadeSpan.y;
-  // float i2 = min(max((d - 20.0) / (90.0 - 20.0), 0.0), 1.0);
-  float i2 = min(max((d - fx) / (fy - fx), 0.0), 1.0);
-  float i1 = 1.0 - i2;
+  // determine color
+  vec4 color = vec4(0.0, 0.0, 0.0, 0.0);
 
-  vec4 color = vec4(
-    uFg.r * i1 + uBg.r * i2,
-    uFg.g * i1 + uBg.g * i2,
-    uFg.b * i1 + uBg.b * i2,
-    uFg.a * i1 + uBg.a * i2
-  );
+  // interpolate fg color based on speed
+  float s0 = max(unlerp(length(aVelocity), uSpeedSpan), abs(xc * wav) / 2.0);
+  float s1 = 1.0 - s0;
+  color += uFg1 * s0;
+  color += uFg2 * s1;
+
+  // interpolate fg/bg based on distance
+  float d1 = unlerp(d, uFadeSpan);
+  float d0 = 1.0 - d1;
+  color *= d0;
+  color += uBg * d1;
 
   // export data
   gl_Position = p;

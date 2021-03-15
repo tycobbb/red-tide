@@ -1,6 +1,5 @@
-import { repeat } from "./utils.js"
-import { kSourceX, kSourceY, kDrag } from "./constants.js"
-import { setPos, setTexPos, setVisible, setIndices } from "./view.js"
+import { kParticleSize, kSourceX, kSourceY, kDrag } from "./constants.js"
+import { setPos, setTexPos, setVelocity, setVisible, setIndices } from "./view.js"
 
 // -- constants --
 const kTexQuad = [
@@ -48,10 +47,9 @@ export function init(len) {
 
 function initParticle(i) {
   return {
+    ...kParticleSize,
     x: mX,
     y: mY,
-    w: 1.0,
-    h: 1.0,
     vx: 0.0,
     vy: 0.0,
     on: false,
@@ -139,6 +137,16 @@ function syncPos(i) {
     x0, y0,
     x1, y0,
     x1, y1,
+  ])
+
+  const vx = p.vx
+  const vy = p.vy
+
+  setVelocity(i, [
+    vx, vy,
+    vx, vy,
+    vx, vy,
+    vx, vy,
   ])
 }
 
