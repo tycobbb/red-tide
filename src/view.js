@@ -220,7 +220,7 @@ export function draw(time) {
 
   // conf texture uniform
   gl.activeTexture(gl.TEXTURE0)
-  gl.bindTexture(gl.TEXTURE_2D, mTextures.tide)
+  gl.bindTexture(gl.TEXTURE_2D, mTextures.cell)
   gl.uniform1i(sd.uniforms.sampler, 0)
 
   // draw everything using vertex indices
@@ -318,7 +318,7 @@ function initBuffers() {
 // -- i/textures
 function initTextures(srcs) {
   return {
-    tide: initTexture(srcs.tide),
+    cell: initTexture(srcs.cell),
   }
 }
 

@@ -69,7 +69,7 @@ function initAttr(props) {
     loadEl(window),
     loadAssets({
       textures: {
-        tide: "./assets/tide.png",
+        cell: "./assets/algae.png",
       },
       shaders: {
         draw: {
