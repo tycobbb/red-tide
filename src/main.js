@@ -25,6 +25,7 @@ const knIndices = 6
 const knIndicesLen = knIndices * knParticles
 
 // -- c/style
+const kGreen = [0.43, 0.56, 0.48, 1.00]
 const kRed = [0.86, 0.39, 0.37, 1.00]
 const kRedQuad = repeat(4, kRed)
 const kClear = [0.00, 0.00, 0.00, 0.00]
@@ -66,7 +67,7 @@ function main(assets) {
     return
   }
 
-  mGl = mCanvas.getContext("webgl")
+  mGl = mCanvas.getContext("webgl", { alpha: false })
   if (mGl == null) {
     console.error("where is webgl NOW~!")
     return
@@ -116,11 +117,13 @@ function draw() {
   const sd = mShaderDescs.draw
 
   // set blend mode
+  // https://limnu.com/webgl-blending-youre-probably-wrong/
+  // https://stackoverflow.com/questions/39341564/webgl-how-to-correctly-blend-alpha-channel-png
   gl.enable(gl.BLEND);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
 
-  // background color, black
-  gl.clearColor(0.0, 0.0, 0.0, 1.0)
+  // background color
+  gl.clearColor(...kGreen)
 
   // enable depth testing, near > far
   gl.clearDepth(1.0)
@@ -424,6 +427,9 @@ function initTexture(img) {
   // conf texture
   gl.bindTexture(gl.TEXTURE_2D, tex)
 
+  // premultiply alpha
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true)
+
   // set texture data
   gl.texImage2D(
     gl.TEXTURE_2D,    // target
@@ -434,11 +440,11 @@ function initTexture(img) {
     img,              // source
   )
 
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-
   // generate mipmaps for this image, (must be power of 2)
   gl.generateMipmap(gl.TEXTURE_2D);
+
+  // and enable trilinear filtering
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
 
   return tex
 }
