@@ -31,10 +31,8 @@ function loop() {
 
 function update() {
   // spawn particles
-  if (!isEmpty()) {
-    for (let i = 0; i < kEmitRate; i++) {
-      emit(getSpeed(), getAngle())
-    }
+  if (!isEmpty() && mFrame % kEmitRate == 0) {
+    emit(getSpeed(), getAngle())
   }
 
   // run particle simulation
@@ -69,7 +67,7 @@ function initAttr(props) {
     loadEl(window),
     loadAssets({
       textures: {
-        cell: "./assets/algae.png",
+        cell: "./assets/rat.png",
       },
       shaders: {
         draw: {

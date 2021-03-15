@@ -4,9 +4,9 @@ import { setPos, setTexPos, setVelocity, setVisible, setIndices } from "./view.j
 // -- constants --
 const kTexQuad = [
   0.0, 0.0,
-  1.0, 0.0,
+  0.0, 1.0,
   1.0, 1.0,
-  0.0, 1.0
+  1.0, 0.0,
 ]
 
 // -- props --

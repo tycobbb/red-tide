@@ -1,16 +1,16 @@
 // -- style --
 export const kParticleSize = {
-  w: 0.5,
-  h: 0.5
+  w: 4.0,
+  h: 4.0
 }
 
 // -- s/color
-export const kGreen = new Float32Array([0.27, 0.46, 0.45, 1.00])
-export const kRed1 = new Float32Array([1.00, 0.69, 0.66, 1.00])
-export const kRed2 = new Float32Array([0.79, 0.25, 0.40, 1.00])
+export const kGreen = new Float32Array([0.28, 0.30, 0.29, 1.00])
+export const kRed1 = new Float32Array([1.00, 1.00, 1.00, 1.00])
+export const kRed2 = new Float32Array([1.00, 1.00, 1.00, 1.00])
 
 // -- s/anim --
-export const kFadeSpan = [40.0, 70.0]
+export const kFadeSpan = [10.0, 40.0]
 export const kSpeedSpan = [0.0, 0.1]
 
 
@@ -26,7 +26,7 @@ export const kCameraZ = -60.0
 export const kCameraPos = [kCameraX, kCameraY, kCameraZ]
 
 // -- physics --
-export const knParticles = 20000
+export const knParticles = 1000
 export const kDrag = 0.999
 
 // -- p/wave
@@ -35,7 +35,7 @@ export const kWaveLength = Math.PI / 2.0
 export const kWaveAmplitude = 2.0
 
 // -- p/emit
-export const kEmitRate = 20
+export const kEmitRate = 2
 
 export const kEmitAngle = initAttr({
   min: 0,
@@ -44,8 +44,8 @@ export const kEmitAngle = initAttr({
 })
 
 export const kEmitSpeed = initAttr({
-  min: 0.01,
-  max: 0.07,
+  min: 0.20,
+  max: 0.80,
   crv: (s, f) => Math.pow(s, 2),
 })
 
