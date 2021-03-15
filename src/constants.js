@@ -1,7 +1,7 @@
 // -- style --
-export const kGreen = [0.43, 0.56, 0.48, 1.00]
-export const kRed = [0.86, 0.39, 0.37, 1.00]
-export const kClear = [0.00, 0.00, 0.00, 0.00]
+export const kGreen = new Float32Array([0.27, 0.46, 0.45, 1.00])
+export const kRed = new Float32Array([0.86, 0.39, 0.37, 1.00])
+export const kFadeSpan = [40.0, 70.0]
 
 // -- screen --
 export const kSourceX = 0.0
@@ -9,13 +9,13 @@ export const kSourceY = 0.0
 
 // when z = -60, x,y = -25 places the origin in the bottom-left corner
 // TODO: what is the math here?
-export const kCameraX = -30.0
-export const kCameraY = -30.0
+export const kCameraX = -35.0
+export const kCameraY = -35.0
 export const kCameraZ = -60.0
 export const kCameraPos = [kCameraX, kCameraY, kCameraZ]
 
 // -- physics --
-export const knParticles = 10000
+export const knParticles = 5000
 export const kDrag = 0.999
 
 // -- p/wave
@@ -33,7 +33,7 @@ export const kEmitAngle = initAttr({
 
 export const kEmitSpeed = initAttr({
   min: 0.01,
-  max: 0.05,
+  max: 0.09,
   crv: (s, f) => Math.pow(s, 2),
 })
 

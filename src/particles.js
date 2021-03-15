@@ -1,10 +1,8 @@
 import { repeat } from "./utils.js"
-import { kSourceX, kSourceY, kDrag, kRed, kClear } from "./constants.js"
-import { setPos, setTexPos, setColors, setIndices } from "./view.js"
+import { kSourceX, kSourceY, kDrag } from "./constants.js"
+import { setPos, setTexPos, setVisible, setIndices } from "./view.js"
 
 // -- constants --
-const kRedQuad = repeat(4, kRed)
-const kClearQuad = repeat(4, kClear)
 const kTexQuad = [
   0.0, 0.0,
   1.0, 0.0,
@@ -18,8 +16,6 @@ let mParticles = null
 let mFree = null
 let mX = null
 let mY = null
-
-let mDebug
 
 // -- lifetime --
 export function init(len) {
@@ -36,7 +32,7 @@ export function init(len) {
 
     // sync gl vert data
     syncPos(i)
-    syncColors(i)
+    syncOn(i)
 
     // seed static gl data
     setTexPos(i,
@@ -123,7 +119,7 @@ function setOn(i, on) {
     mFree.add(i)
   }
 
-  syncColors(i)
+  syncOn(i)
 }
 
 function syncPos(i) {
@@ -146,14 +142,12 @@ function syncPos(i) {
   ])
 }
 
-function syncColors(i) {
+function syncOn(i) {
   const p = mParticles[i]
 
-  if (p.on) {
-    setColors(i, kRedQuad)
-  } else {
-    setColors(i, kClearQuad)
-  }
+  setVisible(i, [
+    p.on ? 1 : 0
+  ])
 }
 
 // -- queries --

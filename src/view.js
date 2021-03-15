@@ -1,5 +1,5 @@
 import "../lib/gl-matrix@3.3.0.min.js"
-import { kCameraPos, kGreen, kWaveAngle, kWaveLength, kWaveAmplitude } from "./constants.js"
+import { kCameraPos, kRed, kGreen, kFadeSpan, kWaveAngle, kWaveLength, kWaveAmplitude } from "./constants.js"
 
 // -- deps --
 const { mat4 } = glMatrix
@@ -8,7 +8,7 @@ const { mat4 } = glMatrix
 const knVerts = 4
 const knPos = 8
 const knTexPos = 8
-const knColors = 16
+const knVisible = 1
 const knIndices = 6
 
 // -- props -
@@ -26,8 +26,8 @@ let dnPos = null
 let dPos = null
 let dnTexPos = null
 let dTexPos = null
-let dnColors = null
-let dColors = null
+let dnVisible = null
+let dVisible = null
 let dnIndices = null
 let dIndices = null
 
@@ -40,8 +40,8 @@ export function initData(len) {
   dnTexPos = knTexPos * len
   dTexPos = new Float32Array(dnTexPos)
 
-  dnColors = knColors * len
-  dColors = new Float32Array(dnColors)
+  dnVisible = knVisible * len
+  dVisible = new Uint8Array(dnVisible)
 
   dnIndices = knIndices * len
   dIndices = new Uint16Array(dnIndices)
@@ -145,19 +145,19 @@ export function draw(time) {
 
   gl.enableVertexAttribArray(sd.attribs.texPos)
 
-  // update vert color buffer
-  gl.bindBuffer(gl.ARRAY_BUFFER, mBuffers.colors)
-  gl.bufferSubData(gl.ARRAY_BUFFER, 0, dColors)
-  gl.vertexAttribPointer(
-    sd.attribs.color, // location
-    4,                // n components per vec
-    gl.FLOAT,         // data type of component
-    false,            // normalize?
-    0,                // stride, n bytes per item; 0 = use n components * type size (2 * 4)
-    0,                // offset, start pos in bytes
-  )
+  // // update "visible" buffer buffer
+  // gl.bindBuffer(gl.ARRAY_BUFFER, mBuffers.visible)
+  // gl.bufferSubData(gl.ARRAY_BUFFER, 0, dVisible)
+  // gl.vertexAttribPointer(
+  //   sd.attribs.visible, // location
+  //   1,                  // n components per vec
+  //   gl.UNSIGNED_BYTE,   // data type of component
+  //   false,               // normalize?
+  //   0,                  // stride, n bytes per item; 0 = use n components * type size (2 * 4)
+  //   0,                  // offset, start pos in bytes
+  // )
 
-  gl.enableVertexAttribArray(sd.attribs.color)
+  // gl.enableVertexAttribArray(sd.attribs.visible)
 
   // conf shader program
   gl.useProgram(sd.program)
@@ -175,11 +175,18 @@ export function draw(time) {
     view,
   )
 
+  // conf style uniforms
+  gl.uniform4fv(sd.uniforms.fgColor, kRed)
+  gl.uniform4fv(sd.uniforms.bgColor, kGreen)
+  gl.uniform2fv(sd.uniforms.fadeSpan, kFadeSpan)
+
+  // conf wave uniforms
   gl.uniform1f(sd.uniforms.time, time)
   gl.uniform1f(sd.uniforms.waveAngle, kWaveAngle)
   gl.uniform1f(sd.uniforms.waveLength, kWaveLength)
   gl.uniform1f(sd.uniforms.waveAmplitude, kWaveAmplitude)
 
+  // conf texture uniform
   gl.activeTexture(gl.TEXTURE0)
   gl.bindTexture(gl.TEXTURE_2D, mTextures.tide)
   gl.uniform1i(sd.uniforms.sampler, 0)
@@ -208,10 +215,10 @@ export function setTexPos(i, values) {
   )
 }
 
-export function setColors(i, colors) {
-  dColors.set(
-    colors,
-    i * knColors,
+export function setVisible(i, visible) {
+  dVisible.set(
+    visible,
+    i * knVisible,
   )
 }
 
@@ -244,10 +251,10 @@ function initBuffers() {
   gl.bindBuffer(gl.ARRAY_BUFFER, texPos)
   gl.bufferData(gl.ARRAY_BUFFER, dTexPos, gl.STATIC_DRAW)
 
-  // create vert color buffer
-  const colors = gl.createBuffer()
-  gl.bindBuffer(gl.ARRAY_BUFFER, colors)
-  gl.bufferData(gl.ARRAY_BUFFER, dColors, gl.DYNAMIC_DRAW)
+  // create "visible" buffer
+  const visible = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, visible)
+  gl.bufferData(gl.ARRAY_BUFFER, dVisible, gl.DYNAMIC_DRAW)
 
   // create index buffer
   const indices = gl.createBuffer();
@@ -258,7 +265,7 @@ function initBuffers() {
   return {
     pos,
     texPos,
-    colors,
+    visible,
     indices,
   }
 }
@@ -318,12 +325,15 @@ function initShaderDescs(srcs) {
         attribs: {
           pos: gl.getAttribLocation(program, "aPos"),
           texPos: gl.getAttribLocation(program, "aTexPos"),
-          color: gl.getAttribLocation(program, "aColor"),
+          visible: gl.getAttribLocation(program, "aVisible"),
         },
         uniforms: {
           view: gl.getUniformLocation(program, "uView"),
           proj: gl.getUniformLocation(program, "uProj"),
           time: gl.getUniformLocation(program, "uTime"),
+          fgColor: gl.getUniformLocation(program, "uFg"),
+          bgColor: gl.getUniformLocation(program, "uBg"),
+          fadeSpan: gl.getUniformLocation(program, "uFadeSpan"),
           waveAngle: gl.getUniformLocation(program, "uWaveAngle"),
           waveLength: gl.getUniformLocation(program, "uWaveLength"),
           waveAmplitude: gl.getUniformLocation(program, "uWaveAmplitude"),
