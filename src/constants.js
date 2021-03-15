@@ -10,7 +10,7 @@ export const kRed1 = new Float32Array([1.00, 0.69, 0.66, 1.00])
 export const kRed2 = new Float32Array([0.79, 0.25, 0.40, 1.00])
 
 // -- s/anim --
-export const kFadeSpan = [40.0, 65.0]
+export const kFadeSpan = [40.0, 67.0]
 export const kSpeedSpan = [0.0, 0.1]
 
 // -- screen --
