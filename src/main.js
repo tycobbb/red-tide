@@ -9,7 +9,7 @@ const kCameraZ = -60.0
 const kEmitX = -25.0
 const kEmitY = -25.0
 const kEmitSpeed = 2.0
-const kEmitAngle = -Math.PI / 2
+const kEmitAngle = Math.PI / 4
 const kEmitDrag = 0.97
 
 // -- c/gl
@@ -95,9 +95,20 @@ function main(assets) {
 
 // -- commands --
 function loop() {
+  update()
   draw()
   requestAnimationFrame(loop)
   mFrame++
+}
+
+function update() {
+  // spawn particles
+  if (mFrame % 10) {
+    mEmitter.emit(kEmitSpeed, kEmitAngle)
+  }
+
+  // run particle simulation
+  mEmitter.update()
 }
 
 function draw() {
@@ -224,8 +235,8 @@ function initEmitter() {
   // private
   function initParticle(i) {
     return {
-      x: mX + i * 2,
-      y: mY + 0,
+      x: mX,
+      y: mY,
       w: 1.0,
       h: 1.0,
       vx: 0.0,
@@ -256,11 +267,6 @@ function initEmitter() {
           di + 0, di + 1, di + 2,
           di + 0, di + 2, di + 3,
         ], i * knIndices)
-
-        // debug
-        if (i === 0) {
-          this.setOn(i, true)
-        }
       }
     },
     // -- loop --
@@ -280,13 +286,13 @@ function initEmitter() {
         p.y += p.vy
 
         // decay velocity
-        p.vx *= kDrag
-        if (p.vx <= 0.01) {
+        p.vx *= kEmitDrag
+        if (Math.abs(p.vx) <= 0.01) {
           p.vx = 0.0
         }
 
-        p.vy *= kDrag
-        if (p.vy <= 0.01) {
+        p.vy *= kEmitDrag
+        if (Math.abs(p.vy) <= 0.01) {
           p.vy = 0.0
         }
 
@@ -294,10 +300,10 @@ function initEmitter() {
       }
     },
     // -- comamnds --
-    fire(speed, radians) {
+    emit(speed, radians) {
       const i = mFree.keys().next().value
       if (i == null) {
-        console.error("tried to fire a particle but there were none available")
+        // console.error("tried to fire a particle but there were none available")
         return
       }
 
@@ -311,7 +317,7 @@ function initEmitter() {
       p.vx = speed * Math.cos(radians)
       p.vy = speed * Math.sin(radians)
 
-      this.syncPos()
+      this.syncPos(i)
     },
     move(i, dx, dy) {
       const p = mParticles[i]
