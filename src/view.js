@@ -80,7 +80,7 @@ export function init(assets) {
 }
 
 // -- commands --
-export function draw() {
+export function draw(time) {
   const gl = mGl
   const sd = mShaderDescs.draw
 
@@ -174,6 +174,12 @@ export function draw() {
     sd.uniforms.view,
     false,
     view,
+  )
+
+  console.log("time", time)
+  gl.uniform1f(
+    sd.uniforms.time,
+    time,
   )
 
   gl.activeTexture(gl.TEXTURE0)
@@ -319,6 +325,7 @@ function initShaderDescs(srcs) {
         uniforms: {
           view: gl.getUniformLocation(program, "uView"),
           proj: gl.getUniformLocation(program, "uProj"),
+          time: gl.getUniformLocation(program, "uTime"),
           sampler: gl.getUniformLocation(program, "uSampler"),
         },
       })

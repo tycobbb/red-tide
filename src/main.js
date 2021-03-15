@@ -20,6 +20,7 @@ const kEmitSpeed = initAttr({
 
 // -- props -
 let mFrame = 0
+let mTime = null
 
 // -- lifetime --
 function main(assets) {
@@ -36,8 +37,9 @@ function main(assets) {
 
 // -- commands --
 function loop() {
+  mTime = performance.now() / 1000
   update()
-  draw()
+  draw(mTime)
   mFrame++
   requestAnimationFrame(loop)
 }
