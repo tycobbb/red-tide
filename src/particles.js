@@ -19,6 +19,8 @@ let mFree = null
 let mX = null
 let mY = null
 
+let mDebug
+
 // -- lifetime --
 export function init(len) {
   mLen = len

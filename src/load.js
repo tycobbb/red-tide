@@ -1,11 +1,13 @@
 // -- commands --
-export function loadEl(el) {
-  return new Promise((resolve) => {
+export async function loadEl(el) {
+  const res = new Promise((resolve) => {
     el.addEventListener("load", function listener() {
       el.removeEventListener("load", listener)
       resolve()
     })
   })
+
+  return res
 }
 
 export async function loadAssets(assets) {
@@ -48,7 +50,6 @@ export async function loadAssets(assets) {
   return memo
 }
 
-// -- c/helpers
 function parseAsset(res) {
   switch (res.headers.get("Content-Type")) {
     case "image/png":

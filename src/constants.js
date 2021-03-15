@@ -5,8 +5,8 @@ export const kClear = [0.00, 0.00, 0.00, 0.00]
 
 // -- screen --
 export const kCameraZ = -60.0
-export const kSourceX = -0.0
-export const kSourceY = -0.0
+export const kSourceX = -25.0
+export const kSourceY = -25.0
 
 // -- physics --
 export const kDrag = 0.97

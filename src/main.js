@@ -1,11 +1,11 @@
 import { loadEl, loadAssets } from "./load.js"
-import { init as initView, draw } from "./view.js"
+import { init as initView, draw, initData } from "./view.js"
 import { init as initParticles, simulate, emit, isEmpty } from "./particles.js"
 
 // -- constants --
 const knParticles = 10
-const kEmitSpeed = 0.0
-const kEmitAngle = -Math.PI / 4
+const kEmitSpeed = 2.0
+const kEmitAngle = Math.PI / 4
 const kEmitInterval = 10
 
 // -- props -
@@ -13,9 +13,12 @@ let mFrame = 0
 
 // -- lifetime --
 function main(assets) {
+  console.debug("start")
+
   // initialize
-  initView(knParticles, assets)
+  initData(knParticles)
   initParticles(knParticles)
+  initView(assets)
 
   // start loop
   loop()

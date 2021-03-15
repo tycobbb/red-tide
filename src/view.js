@@ -32,7 +32,22 @@ let dnIndices = null
 let dIndices = null
 
 // -- lifetime --
-export function init(len, assets) {
+export function initData(len) {
+  // TODO: how to conserve gl memory here? instanced drawing?
+  dnPos = knPos * len
+  dPos = new Float32Array(dnPos)
+
+  dnTexPos = knTexPos * len
+  dTexPos = new Float32Array(dnTexPos)
+
+  dnColors = knColors * len
+  dColors = new Float32Array(dnColors)
+
+  dnIndices = knIndices * len
+  dIndices = new Uint16Array(dnIndices)
+}
+
+export function init(assets) {
   // grab canvas/context
   mCanvas = document.getElementById("canvas")
   if (mCanvas == null) {
@@ -51,19 +66,6 @@ export function init(len, assets) {
     Number.parseInt(mCanvas.getAttribute("height")),
   )
 
-  // init data arrays
-  // TODO: how to conserve gl memory here? instanced drawing?
-  dnPos = knPos * len
-  dPos = new Float32Array(dnPos)
-
-  dnTexPos = knTexPos * len
-  dTexPos = new Float32Array(dnTexPos)
-
-  dnColors = knColors * len
-  dColors = new Float32Array(dnColors)
-
-  dnIndices = knIndices * len
-  dIndices = new Uint16Array(dnIndices)
 
   // init gl drawing props
   mBuffers = initBuffers()
@@ -156,7 +158,7 @@ export function draw() {
     0,                // offset, start pos in bytes
   )
 
-  gl.enableVertexAttribArray(sd.attribs.colors)
+  gl.enableVertexAttribArray(sd.attribs.color)
 
   // conf shader program
   gl.useProgram(sd.program)
