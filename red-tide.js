@@ -1,25 +1,46 @@
 import "./lib/gl-matrix@3.3.0.min.js"
+import { repeat } from "./src/utils.js"
 
 // -- deps --
 const { mat4 } = glMatrix
 
 // -- constants --
+const kCameraZ = -60.0
+const kEmitX = -25.0
+const kEmitY = -25.0
+const kEmitSpeed = 2.0
+const kEmitAngle = -Math.PI / 2
+const kEmitDrag = 0.97
+
+// -- c/gl
 const knParticles = 10
 const knVerts = 4
 const knPos = 8
 const knPosLen = knPos * knParticles
 const knTexPos = 8
 const knTexPosLen = knTexPos * knParticles
+const knColors = 16
+const knColorsLen = knColors * knParticles
 const knIndices = 6
 const knIndicesLen = knIndices * knParticles
 
 // -- c/style
-const kRed = new Float32Array([0.86, 0.39, 0.37, 1.00])
+const kRed = [0.86, 0.39, 0.37, 1.00]
+const kRedQuad = repeat(4, kRed)
+const kClear = [0.00, 0.00, 0.00, 0.00]
+const kClearQuad = repeat(4, kClear)
+const kTexQuad = [
+  0.0, 0.0,
+  1.0, 0.0,
+  1.0, 1.0,
+  0.0, 1.0
+]
 
 // -- props -
 let mCanvas = null
 let mGl = null
 let mSize = null
+let mFrame = 0
 
 // -- p/emitter
 let mEmitter = null
@@ -30,8 +51,10 @@ let mTextures = null
 let mShaderDescs = null
 
 // -- p/gl/data
+// TODO: how to conserve gl memory here? instanced drawing?
 const dPos = new Float32Array(knPosLen)
 const dTexPos = new Float32Array(knTexPosLen)
+const dColors = new Float32Array(knColorsLen)
 const dIndices = new Uint16Array(knIndicesLen)
 
 // -- lifetime --
@@ -72,9 +95,9 @@ function main(assets) {
 
 // -- commands --
 function loop() {
-  mEmitter.move(2, 0.0, 0.01)
   draw()
   requestAnimationFrame(loop)
+  mFrame++
 }
 
 function draw() {
@@ -111,14 +134,12 @@ function draw() {
   mat4.translate(
     view,
     view,
-    [0.0, 0.0, -60.0]  // translate back n units
+    [0.0, 0.0, kCameraZ]  // translate back n units
   )
 
   // update pos buffer
   gl.bindBuffer(gl.ARRAY_BUFFER, mBuffers.pos)
-  gl.bufferSubData(gl.ARRAY_BUFFER, 0, dPos);
-
-  // conf mapping to attrib
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, dPos)
   gl.vertexAttribPointer(
     sd.attribs.pos,    // location
     2,                 // n components per vec
@@ -142,6 +163,20 @@ function draw() {
   )
 
   gl.enableVertexAttribArray(sd.attribs.texPos)
+
+  // update vert color buffer
+  gl.bindBuffer(gl.ARRAY_BUFFER, mBuffers.colors)
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, dColors)
+  gl.vertexAttribPointer(
+    sd.attribs.color, // location
+    4,                // n components per vec
+    gl.FLOAT,         // data type of component
+    false,            // normalize?
+    0,                // stride, n bytes per item; 0 = use n components * type size (2 * 4)
+    0,                // offset, start pos in bytes
+  )
+
+  gl.enableVertexAttribArray(sd.attribs.colors)
 
   // conf shader program
   gl.useProgram(sd.program)
@@ -182,55 +217,127 @@ function draw() {
 function initEmitter() {
   // props
   const mParticles = new Array(knParticles)
-  const mX = 0
-  const mY = 0
+  const mFree = new Set(mParticles.keys())
+  const mX = kEmitX
+  const mY = kEmitY
+
+  // private
+  function initParticle(i) {
+    return {
+      x: mX + i * 2,
+      y: mY + 0,
+      w: 1.0,
+      h: 1.0,
+      vx: 0.0,
+      vy: 0.0,
+      on: false,
+    }
+  }
 
   // define emitter
   const emitter = {
     init() {
       for (let i = 0; i < knParticles; i++) {
         // init particle
-        mParticles[i] = {
-          x: i * 2,
-          y: 0,
-          w: 1.0,
-          h: 1.0,
-        }
+        mParticles[i] = initParticle(i)
 
         // sync gl vert data
-        this.sync(i)
+        this.syncPos(i)
+        this.syncColors(i)
 
         // seed static gl data
-        // TODO: probably a way to conserve some memory here?
-        dTexPos.set([
-          0.0, 0.0,
-          1.0, 0.0,
-          1.0, 1.0,
-          0.0, 1.0,
-        ], i * knTexPos)
+        dTexPos.set(
+          kTexQuad,
+          i * knTexPos,
+        )
 
         const di = i * knVerts
         dIndices.set([
           di + 0, di + 1, di + 2,
           di + 0, di + 2, di + 3,
         ], i * knIndices)
+
+        // debug
+        if (i === 0) {
+          this.setOn(i, true)
+        }
       }
     },
-    set(i, x, y) {
-      const p = mParticles[i]
-      p.x = x
-      p.y = y
+    // -- loop --
+    update() {
+      for (let i = 0; i < knParticles; i++) {
+        const p = mParticles[i]
+        if (!p.on) {
+          continue
+        }
 
-      this.sync(i)
+        if (p.vx == 0 && p.vy == 0) {
+          continue
+        }
+
+        // update position
+        p.x += p.vx
+        p.y += p.vy
+
+        // decay velocity
+        p.vx *= kDrag
+        if (p.vx <= 0.01) {
+          p.vx = 0.0
+        }
+
+        p.vy *= kDrag
+        if (p.vy <= 0.01) {
+          p.vy = 0.0
+        }
+
+        this.syncPos(i)
+      }
+    },
+    // -- comamnds --
+    fire(speed, radians) {
+      const i = mFree.keys().next().value
+      if (i == null) {
+        console.error("tried to fire a particle but there were none available")
+        return
+      }
+
+      // enable this particle
+      this.setOn(i, true)
+
+      // update its initial velocity
+      const p = mParticles[i]
+      p.x = mX
+      p.y = mY
+      p.vx = speed * Math.cos(radians)
+      p.vy = speed * Math.sin(radians)
+
+      this.syncPos()
     },
     move(i, dx, dy) {
       const p = mParticles[i]
+      if (!p.on) {
+        return
+      }
+
       p.x += dx
       p.y += dy
 
-      this.sync(i)
+      this.syncPos(i)
     },
-    sync(i) {
+    setOn(i, on) {
+      const p = mParticles[i]
+      p.on = on
+
+      // track in free index set
+      if (on) {
+        mFree.delete(i)
+      } else {
+        mFree.add(i)
+      }
+
+      this.syncColors(i)
+    },
+    syncPos(i) {
       const p = mParticles[i]
       const x = p.x
       const y = p.y
@@ -243,6 +350,16 @@ function initEmitter() {
         x + w2, y - h2,
         x + w2, y + h2,
       ], i * knPos)
+    },
+    syncColors(i) {
+      const p = mParticles[i]
+      const offset = i * knColors
+
+      if (p.on) {
+        dColors.set(kRedQuad, offset)
+      } else {
+        dColors.set(kClearQuad, offset)
+      }
     }
   }
 
@@ -266,6 +383,11 @@ function initBuffers() {
   gl.bindBuffer(gl.ARRAY_BUFFER, texPos)
   gl.bufferData(gl.ARRAY_BUFFER, dTexPos, gl.STATIC_DRAW)
 
+  // create vert color buffer
+  const colors = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, colors)
+  gl.bufferData(gl.ARRAY_BUFFER, dColors, gl.DYNAMIC_DRAW)
+
   // create index buffer
   const indices = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indices)
@@ -275,6 +397,7 @@ function initBuffers() {
   return {
     pos,
     texPos,
+    colors,
     indices,
   }
 }
@@ -328,12 +451,12 @@ function initShaderDescs(srcs) {
         attribs: {
           pos: gl.getAttribLocation(program, "aPos"),
           texPos: gl.getAttribLocation(program, "aTexPos"),
+          color: gl.getUniformLocation(program, "aColor"),
         },
         uniforms: {
           view: gl.getUniformLocation(program, "uView"),
           proj: gl.getUniformLocation(program, "uProj"),
           sampler: gl.getUniformLocation(program, "uSampler"),
-          color: gl.getUniformLocation(program, "uColor"),
         },
       })
     ),
@@ -423,12 +546,12 @@ function initSize(w, h) {
     loadWindow(),
     loadAssets({
       textures: {
-        tide: "./textures/tide.png",
+        tide: "./assets/tide.png",
       },
       shaders: {
         draw: {
-          vert: "./draw/draw.vert",
-          frag: "./draw/draw.frag",
+          vert: "./src/draw/draw.vert",
+          frag: "./src/draw/draw.frag",
         },
       },
     }),
